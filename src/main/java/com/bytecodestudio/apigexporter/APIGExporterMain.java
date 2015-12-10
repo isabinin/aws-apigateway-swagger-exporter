@@ -1,5 +1,7 @@
 package com.bytecodestudio.apigexporter;
 
+import java.io.FileWriter;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -22,7 +24,7 @@ public class APIGExporterMain {
     private String profile = "default";
 
     @com.beust.jcommander.Parameter(names = {"--output", "-o"}, description = "Output file, prints to console if no file specified")
-    private String file;	//TODO:
+    private String file;
 
     @com.beust.jcommander.Parameter(names = "--help", help = true)
     private boolean help;
@@ -57,7 +59,13 @@ public class APIGExporterMain {
     		APIGExporter exporter = new APIGExporter(
     				getCredentialsProvider(config.getProfile()), config.getRegion());
     		String result = exporter.export(apiId, format);
-    		LOG.info(result);
+    		if (file != null) {
+    			FileWriter w = new FileWriter(file);
+    			w.write(result);
+    			w.close();
+    		} else {
+    			LOG.info(result);
+    		}
         } catch (Throwable t) {
             LOG.error("Error exporting API in Swagger format", t);
             System.exit(1);

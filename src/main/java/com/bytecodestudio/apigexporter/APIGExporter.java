@@ -23,6 +23,7 @@ import com.amazonaws.services.apigateway.model.MethodResponse;
 import com.amazonaws.services.apigateway.model.Model;
 import com.amazonaws.services.apigateway.model.Models;
 import com.amazonaws.services.apigateway.model.Resource;
+import com.amazonaws.services.apigateway.model.Resources;
 import com.amazonaws.services.apigateway.model.RestApi;
 import com.amazonaws.services.cloudfront.model.InvalidArgumentException;
 import com.fasterxml.jackson.core.JsonParseException;
@@ -106,96 +107,98 @@ public class APIGExporter {
 		boolean producesDefaultContentType = false;
 		List<String> producesContentType = null;
 		Map<String, Path> paths = new HashMap<String, Path>();
-		for (Resource resource : restApi.getResources().getItem()) {
-			Map<String, Method> resourceMethods = resource.getResourceMethods();
-			if (resourceMethods.isEmpty()) {
-				continue;
-			}
-			Path path = new Path();			
-			for (Method method : resourceMethods.values()) {
-				Operation operation = new Operation();
-//				operation.setSummary(summary);
-//				operation.setDescription(description);
-				
-				Map<String, String> requestModels = method.getRequestModels();
-				if (requestModels != null && !requestModels.isEmpty()) {
-					String requestModelName = requestModels.get(DEFAULT_CONTENT_TYPE);
-					if (requestModelName == null) {
-						requestModelName = requestModels.values().iterator().next();
-					} else {
-						consumesDefaultContentType = true;
-					}
-					operation.addParameter(getBodyParameter(requestModelName, inlineBodyParameterSchema, swagger, modelRefCount));
-					updateOperationConsumesProduces(ConsumesProducesEnum.CONSUMES, operation, requestModels.keySet());
+		for (Resources resources = restApi.getResources(); resources != null; resources = safeGetNext(resources)) {
+			for (Resource resource : resources.getItem()) {
+				Map<String, Method> resourceMethods = resource.getResourceMethods();
+				if (resourceMethods == null || resourceMethods.isEmpty()) {
+					continue;
 				}
-				Map<String, Boolean> requestParameters = method.getRequestParameters();
-				if (requestParameters != null) {
-					for (Map.Entry<String, Boolean> parameterEntry : requestParameters.entrySet()) {
-						operation.addParameter(getParameter(parameterEntry));
-					}
-				}
-				Map<String, MethodResponse> methodResponses = method.getMethodResponses();
-				if (methodResponses != null) {
-					for (Map.Entry<String, MethodResponse> responseEntry : methodResponses.entrySet()) {
-						MethodResponse methodResponse = responseEntry.getValue();
-						Response response = new Response().headers(getResponseHeaders(methodResponse));
-						Map<String, String> responseModels = methodResponse.getResponseModels();
-						if (responseModels != null && !responseModels.isEmpty()) {
-							String responseModelName = responseModels.get(DEFAULT_CONTENT_TYPE);
-							if (responseModelName == null) {
-								responseModelName = responseModels.values().iterator().next();
-							} else {
-								producesDefaultContentType = true;
-							}
-							response.setDescription(responseModelName);
-							response.setSchema(getResponseSchema(responseModelName, inlineResponseSchema, swagger, modelRefCount));
-							updateOperationConsumesProduces(ConsumesProducesEnum.PRODUCES, operation, responseModels.keySet());
+				Path path = new Path();			
+				for (Method method : resourceMethods.values()) {
+					Operation operation = new Operation();
+//					operation.setSummary(summary);
+//					operation.setDescription(description);
+					
+					Map<String, String> requestModels = method.getRequestModels();
+					if (requestModels != null && !requestModels.isEmpty()) {
+						String requestModelName = requestModels.get(DEFAULT_CONTENT_TYPE);
+						if (requestModelName == null) {
+							requestModelName = requestModels.values().iterator().next();
+						} else {
+							consumesDefaultContentType = true;
 						}
-						operation.addResponse(methodResponse.getStatusCode(), response);
-					}					
-				}
-				
-				String authType = method.getAuthorizationType();
-				if (authType != null) {
-					operation.setVendorExtension(EXTENSION_AUTH, Collections.singletonMap("type", authType));
-				}
-
-				try {
-					Integration integration = method.getMethodIntegration();
-					if (integration != null) {
-						operation.setVendorExtension(EXTENSION_INTEGRATION, getIntegration(integration, resource.getId()));
+						operation.addParameter(getBodyParameter(requestModelName, inlineBodyParameterSchema, swagger, modelRefCount));
+						updateOperationConsumesProduces(ConsumesProducesEnum.CONSUMES, operation, requestModels.keySet());
 					}
-				} catch (UnsupportedOperationException e) {
-					//Ignore
-				}
-				
-				Boolean apiKeyRequired = method.getApiKeyRequired();
-				if (apiKeyRequired != null && apiKeyRequired.booleanValue()) {
-					operation.addSecurity(SECURITY_API_KEY, Collections.<String>emptyList());
-					addApiKey = true;
-				}
-
-				List<String> operationProduces = operation.getProduces();
-				if (operationProduces != null && !operationProduces.isEmpty()) {
-					if (producesContentType == null) {
-						producesContentType = operationProduces;
-					} else {
-						producesContentType.retainAll(operationProduces);
+					Map<String, Boolean> requestParameters = method.getRequestParameters();
+					if (requestParameters != null) {
+						for (Map.Entry<String, Boolean> parameterEntry : requestParameters.entrySet()) {
+							operation.addParameter(getParameter(parameterEntry));
+						}
 					}
-				}
-				List<String> operationConsumes = operation.getConsumes();
-				if (operationConsumes != null && !operationConsumes.isEmpty()) {
-					if (consumesContentType == null) {
-						consumesContentType = operationConsumes;
-					} else {
-						consumesContentType.retainAll(operationConsumes);
+					Map<String, MethodResponse> methodResponses = method.getMethodResponses();
+					if (methodResponses != null) {
+						for (Map.Entry<String, MethodResponse> responseEntry : methodResponses.entrySet()) {
+							MethodResponse methodResponse = responseEntry.getValue();
+							Response response = new Response().headers(getResponseHeaders(methodResponse));
+							Map<String, String> responseModels = methodResponse.getResponseModels();
+							if (responseModels != null && !responseModels.isEmpty()) {
+								String responseModelName = responseModels.get(DEFAULT_CONTENT_TYPE);
+								if (responseModelName == null) {
+									responseModelName = responseModels.values().iterator().next();
+								} else {
+									producesDefaultContentType = true;
+								}
+								response.setDescription(responseModelName);
+								response.setSchema(getResponseSchema(responseModelName, inlineResponseSchema, swagger, modelRefCount));
+								updateOperationConsumesProduces(ConsumesProducesEnum.PRODUCES, operation, responseModels.keySet());
+							}
+							operation.addResponse(methodResponse.getStatusCode(), response);
+						}					
 					}
+					
+					String authType = method.getAuthorizationType();
+					if (authType != null) {
+						operation.setVendorExtension(EXTENSION_AUTH, Collections.singletonMap("type", authType));
+					}
+	
+					try {
+						Integration integration = method.getMethodIntegration();
+						if (integration != null) {
+							operation.setVendorExtension(EXTENSION_INTEGRATION, getIntegration(integration, resource.getId()));
+						}
+					} catch (UnsupportedOperationException e) {
+						//Ignore
+					}
+					
+					Boolean apiKeyRequired = method.getApiKeyRequired();
+					if (apiKeyRequired != null && apiKeyRequired.booleanValue()) {
+						operation.addSecurity(SECURITY_API_KEY, Collections.<String>emptyList());
+						addApiKey = true;
+					}
+	
+					List<String> operationProduces = operation.getProduces();
+					if (operationProduces != null && !operationProduces.isEmpty()) {
+						if (producesContentType == null) {
+							producesContentType = operationProduces;
+						} else {
+							producesContentType.retainAll(operationProduces);
+						}
+					}
+					List<String> operationConsumes = operation.getConsumes();
+					if (operationConsumes != null && !operationConsumes.isEmpty()) {
+						if (consumesContentType == null) {
+							consumesContentType = operationConsumes;
+						} else {
+							consumesContentType.retainAll(operationConsumes);
+						}
+					}
+					
+					path.set(method.getHttpMethod().toLowerCase(), operation);
 				}
-				
-				path.set(method.getHttpMethod().toLowerCase(), operation);
+				String resourcePath = resource.getPath();
+				paths.put(resourcePath.substring(basePath.length()), path);
 			}
-			String resourcePath = resource.getPath();
-			paths.put(resourcePath.substring(basePath.length()), path);
 		}
 		if (addApiKey) {
 			swagger.addSecurityDefinition(SECURITY_API_KEY, 
@@ -225,6 +228,22 @@ public class APIGExporter {
 			return Json.pretty().writeValueAsString(swagger); 
 		} else {
 			throw new InvalidArgumentException("Unsupported output format: " + format);
+		}
+	}
+
+	private static Resources safeGetNext(Resources resources) {
+		try {
+			return resources.getNext();
+		} catch (UnsupportedOperationException e) {
+			return null;
+		}
+	}
+
+	private static Models safeGetNext(Models models) {
+		try {
+			return models.getNext();
+		} catch (UnsupportedOperationException e) {
+			return null;
 		}
 	}
 
@@ -271,17 +290,19 @@ public class APIGExporter {
 	private static Map<String, Property> getResponseHeaders(MethodResponse methodResponse) {
 		Map<String, Property> result = null;
 		Map<String, Boolean> responseParameters = methodResponse.getResponseParameters();
-		for (Map.Entry<String, Boolean> responseParameterEntry : responseParameters.entrySet()) {
-			String parameterName = responseParameterEntry.getKey();
-			if (parameterName.startsWith(METHOD_RESPONSE_HEADER)) {
-				StringProperty headerProperty = new StringProperty();
-				headerProperty.setRequired(responseParameterEntry.getValue());
-				if (result == null) {
-					result = new LinkedHashMap<String, Property>();
+		if (responseParameters != null) {
+			for (Map.Entry<String, Boolean> responseParameterEntry : responseParameters.entrySet()) {
+				String parameterName = responseParameterEntry.getKey();
+				if (parameterName.startsWith(METHOD_RESPONSE_HEADER)) {
+					StringProperty headerProperty = new StringProperty();
+					headerProperty.setRequired(responseParameterEntry.getValue());
+					if (result == null) {
+						result = new LinkedHashMap<String, Property>();
+					}
+					result.put(parameterName.substring(METHOD_RESPONSE_HEADER.length()), headerProperty);
+				} else {
+					throw new UnsupportedOperationException("Unsupported response parameter type " + parameterName);
 				}
-				result.put(parameterName.substring(METHOD_RESPONSE_HEADER.length()), headerProperty);
-			} else {
-				throw new UnsupportedOperationException("Unsupported response parameter type " + parameterName);
 			}
 		}
 		return result;
@@ -355,22 +376,24 @@ public class APIGExporter {
 
 	private static String getBasePath(RestApi restApi) {
 		String basePath = null;
-		for (Resource resource : restApi.getResources().getItem()) {
-			Map<String, Method> resourceMethods = resource.getResourceMethods();
-			if (resourceMethods.isEmpty()) {
-				continue;
-			}
-			String resourcePath = resource.getPath();
-			if (basePath == null) {
-				basePath = resourcePath;
-			} else {
-				int i=0;
-				for (; i<basePath.length() && i<resourcePath.length(); i++) {
-					if (basePath.charAt(i) != resourcePath.charAt(i)) {
-						break;
-					}
+		for (Resources resources = restApi.getResources(); resources != null; resources = safeGetNext(resources)) {
+			for (Resource resource : resources.getItem()) {
+				Map<String, Method> resourceMethods = resource.getResourceMethods();
+				if (resourceMethods.isEmpty()) {
+					continue;
 				}
-				basePath = basePath.substring(0, i);
+				String resourcePath = resource.getPath();
+				if (basePath == null) {
+					basePath = resourcePath;
+				} else {
+					int i=0;
+					for (; i<basePath.length() && i<resourcePath.length(); i++) {
+						if (basePath.charAt(i) != resourcePath.charAt(i)) {
+							break;
+						}
+					}
+					basePath = basePath.substring(0, i);
+				}
 			}
 		}
 		if (basePath != null && basePath.endsWith("/")) {
@@ -381,16 +404,17 @@ public class APIGExporter {
 
 	private static Map<String, com.wordnik.swagger.models.Model> getDefinitions(RestApi restApi)
 			throws IOException, JsonParseException, JsonMappingException {
-		Models models = restApi.getModels();
 		Map<String, com.wordnik.swagger.models.Model> result = new HashMap<String, com.wordnik.swagger.models.Model>();
-		for (Model modelItem : models.getItem()) {
-			com.wordnik.swagger.models.Model model = 
-					Json.mapper().readValue(modelItem.getSchema(), com.wordnik.swagger.models.Model.class);
-			if (model instanceof ModelImpl) {
-				((ModelImpl) model).setName(modelItem.getName());
+		for (Models models = restApi.getModels(); models != null; models = safeGetNext(models)) {
+			for (Model modelItem : models.getItem()) {
+				com.wordnik.swagger.models.Model model = 
+						Json.mapper().readValue(modelItem.getSchema(), com.wordnik.swagger.models.Model.class);
+				if (model instanceof ModelImpl) {
+					((ModelImpl) model).setName(modelItem.getName());
+				}
+				model.setDescription(modelItem.getDescription());
+				result.put(modelItem.getName(), model);
 			}
-			model.setDescription(modelItem.getDescription());
-			result.put(modelItem.getName(), model);
 		}
 		return result;
 	}
