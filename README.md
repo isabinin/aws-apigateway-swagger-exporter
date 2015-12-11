@@ -14,6 +14,10 @@ This tool was inspired by [Amazon API Gateway Importer][aws-apigateway-importer]
 This tool requires the [AWS CLI](http://aws.amazon.com/cli).
 Download and configure following [instructions](http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html) to set up your system for accessing your AWS account.
 
+Alternatevly, you can use environment variables to provide AWS access credentials and AWS region.
+Environment variables override AWS CLI configuration and can be useful for scripting.
+The following variables are supported: AWS\_ACCESS\_KEY\_ID, AWS\_SECRET\_ACCESS\_KEY and AWS\_DEFAULT\_REGION.
+
 Build with `mvn assembly:assembly`
 
 ### Export an existing API in Swagger YAML format, output to console

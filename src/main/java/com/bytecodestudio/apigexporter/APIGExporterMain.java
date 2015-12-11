@@ -5,7 +5,9 @@ import java.io.FileWriter;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSCredentialsProvider;
+import com.amazonaws.auth.EnvironmentVariableCredentialsProvider;
 import com.amazonaws.auth.profile.ProfileCredentialsProvider;
 import com.beust.jcommander.JCommander;
 
@@ -47,17 +49,26 @@ public class APIGExporterMain {
             System.exit(1);
         }
 
-        AwsConfig config = new AwsConfig(profile);
-        try {
-            config.load();
-        } catch (Throwable t) {
-            LOG.error("Could not load AWS configuration. Please run 'aws configure'");
-            System.exit(1);
+        AWSCredentialsProvider provider = getEnvironmentVariableCredentialsProvider();
+        String region = getRegionFromEnvironmentVariable();
+        if (provider == null || region == null) {
+            AwsConfig config = new AwsConfig(profile);
+            try {
+                config.load();
+                if (provider == null) {
+                	provider = getCredentialsProvider(config.getProfile());
+                }
+                if (region == null) {
+                	region = config.getRegion();
+                }
+            } catch (Throwable t) {
+                LOG.error("Could not load AWS configuration. Please run 'aws configure'");
+                System.exit(1);
+            }
         }
         
         try {
-    		APIGExporter exporter = new APIGExporter(
-    				getCredentialsProvider(config.getProfile()), config.getRegion());
+    		APIGExporter exporter = new APIGExporter(provider, region);
     		String result = exporter.export(apiId, format);
     		if (file != null) {
     			FileWriter w = new FileWriter(file);
@@ -84,8 +95,25 @@ public class APIGExporterMain {
         return true;
     }
 
+    private static String getRegionFromEnvironmentVariable() {
+    	return System.getenv("AWS_DEFAULT_REGION");
+    }
+    
+    private static AWSCredentialsProvider getEnvironmentVariableCredentialsProvider() {
+    	AWSCredentialsProvider provider = new EnvironmentVariableCredentialsProvider();
+        try {
+        	AWSCredentials credentials = provider.getCredentials();
+        	if (credentials != null && credentials.getAWSAccessKeyId() != null && credentials.getAWSSecretKey() != null) {
+        		return provider;
+        	}
+        } catch (Throwable t) {
+            //Ignore
+        }
+        return null;
+    }
+
     private static AWSCredentialsProvider getCredentialsProvider(String profile) throws Throwable {
-        ProfileCredentialsProvider provider = new ProfileCredentialsProvider(profile);
+        AWSCredentialsProvider provider = new ProfileCredentialsProvider(profile);
 
         try {
             provider.getCredentials();
