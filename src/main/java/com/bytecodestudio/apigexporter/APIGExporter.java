@@ -28,31 +28,31 @@ import com.amazonaws.services.apigateway.model.RestApi;
 import com.amazonaws.services.cloudfront.model.InvalidArgumentException;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
-import com.wordnik.swagger.models.ArrayModel;
-import com.wordnik.swagger.models.ComposedModel;
-import com.wordnik.swagger.models.Info;
-import com.wordnik.swagger.models.ModelImpl;
-import com.wordnik.swagger.models.Operation;
-import com.wordnik.swagger.models.Path;
-import com.wordnik.swagger.models.RefModel;
-import com.wordnik.swagger.models.Response;
-import com.wordnik.swagger.models.Scheme;
-import com.wordnik.swagger.models.Swagger;
-import com.wordnik.swagger.models.auth.ApiKeyAuthDefinition;
-import com.wordnik.swagger.models.auth.In;
-import com.wordnik.swagger.models.parameters.BodyParameter;
-import com.wordnik.swagger.models.parameters.HeaderParameter;
-import com.wordnik.swagger.models.parameters.Parameter;
-import com.wordnik.swagger.models.parameters.PathParameter;
-import com.wordnik.swagger.models.parameters.QueryParameter;
-import com.wordnik.swagger.models.properties.ArrayProperty;
-import com.wordnik.swagger.models.properties.MapProperty;
-import com.wordnik.swagger.models.properties.Property;
-import com.wordnik.swagger.models.properties.PropertyBuilder;
-import com.wordnik.swagger.models.properties.RefProperty;
-import com.wordnik.swagger.models.properties.StringProperty;
-import com.wordnik.swagger.util.Json;
-import com.wordnik.swagger.util.Yaml;
+import io.swagger.models.ArrayModel;
+import io.swagger.models.ComposedModel;
+import io.swagger.models.Info;
+import io.swagger.models.ModelImpl;
+import io.swagger.models.Operation;
+import io.swagger.models.Path;
+import io.swagger.models.RefModel;
+import io.swagger.models.Response;
+import io.swagger.models.Scheme;
+import io.swagger.models.Swagger;
+import io.swagger.models.auth.ApiKeyAuthDefinition;
+import io.swagger.models.auth.In;
+import io.swagger.models.parameters.BodyParameter;
+import io.swagger.models.parameters.HeaderParameter;
+import io.swagger.models.parameters.Parameter;
+import io.swagger.models.parameters.PathParameter;
+import io.swagger.models.parameters.QueryParameter;
+import io.swagger.models.properties.ArrayProperty;
+import io.swagger.models.properties.MapProperty;
+import io.swagger.models.properties.Property;
+import io.swagger.models.properties.PropertyBuilder;
+import io.swagger.models.properties.RefProperty;
+import io.swagger.models.properties.StringProperty;
+import io.swagger.util.Json;
+import io.swagger.util.Yaml;
 
 public class APIGExporter {
 
@@ -268,7 +268,7 @@ public class APIGExporter {
 			Swagger swagger, Map<String, Integer> modelRefCount) {
 		Property schema = new RefProperty(responseModelName);
 		if (inlineResponseSchema && !modelRefCount.containsKey(responseModelName)) {
-			com.wordnik.swagger.models.Model model = swagger.getDefinitions().get(responseModelName);
+			io.swagger.models.Model model = swagger.getDefinitions().get(responseModelName);
 			//If empty model was generated for response type
 			if (model instanceof ModelImpl) {
 				Map<String, Property> modelProperties = ((ModelImpl) model).getProperties();
@@ -402,13 +402,14 @@ public class APIGExporter {
 		return basePath;
 	}
 
-	private static Map<String, com.wordnik.swagger.models.Model> getDefinitions(RestApi restApi)
+	private static Map<String, io.swagger.models.Model> getDefinitions(RestApi restApi)
 			throws IOException, JsonParseException, JsonMappingException {
-		Map<String, com.wordnik.swagger.models.Model> result = new HashMap<String, com.wordnik.swagger.models.Model>();
+		Map<String, io.swagger.models.Model> result = new HashMap<String, io.swagger.models.Model>();
 		for (Models models = restApi.getModels(); models != null; models = safeGetNext(models)) {
 			for (Model modelItem : models.getItem()) {
-				com.wordnik.swagger.models.Model model = 
-						Json.mapper().readValue(modelItem.getSchema(), com.wordnik.swagger.models.Model.class);
+				String content = modelItem.getSchema(); 
+				io.swagger.models.Model model = 
+						Json.mapper().readValue(content, io.swagger.models.Model.class);
 				if (model instanceof ModelImpl) {
 					((ModelImpl) model).setName(modelItem.getName());
 				}
@@ -445,15 +446,15 @@ public class APIGExporter {
 		map.put(key, value);
 	}
 
-	private static void processModelRefs(Collection<? extends com.wordnik.swagger.models.Model> models, Map<String, Integer> modelRefCount) {
+	private static void processModelRefs(Collection<? extends io.swagger.models.Model> models, Map<String, Integer> modelRefCount) {
 		if (models != null) {
-			for (com.wordnik.swagger.models.Model model : models) {
+			for (io.swagger.models.Model model : models) {
 				processModelRefs(model, modelRefCount);
 			}
 		}
 	}
 	
-	private static void processModelRefs(com.wordnik.swagger.models.Model model, Map<String, Integer> modelRefCount) {
+	private static void processModelRefs(io.swagger.models.Model model, Map<String, Integer> modelRefCount) {
 		if (model instanceof RefModel) {
 			String ref = ((RefModel) model).getSimpleRef();
 			Integer count = modelRefCount.get(ref);
