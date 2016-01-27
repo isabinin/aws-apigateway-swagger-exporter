@@ -2,6 +2,7 @@ package com.bytecodestudio.apigexporter;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -94,7 +95,7 @@ public class APIGExporter {
 				.info(new Info().title(restApi.getName()).description(restApi.getDescription()))
 				.host(restApiId + ".execute-api." + region + ".amazonaws.com")
 				.scheme(Scheme.HTTPS)
-				.basePath(basePath);
+				.basePath(basePath.isEmpty() ? "/" : basePath);
 		
 		swagger.setDefinitions(getDefinitions(restApi));
 		
@@ -375,31 +376,35 @@ public class APIGExporter {
 	}
 
 	private static String getBasePath(RestApi restApi) {
-		String basePath = null;
+		String[] basePath = null;
 		for (Resources resources = restApi.getResources(); resources != null; resources = safeGetNext(resources)) {
 			for (Resource resource : resources.getItem()) {
 				Map<String, Method> resourceMethods = resource.getResourceMethods();
 				if (resourceMethods.isEmpty()) {
 					continue;
 				}
-				String resourcePath = resource.getPath();
+				String[] resourcePath = resource.getPath().split("/");
 				if (basePath == null) {
 					basePath = resourcePath;
 				} else {
 					int i=0;
-					for (; i<basePath.length() && i<resourcePath.length(); i++) {
-						if (basePath.charAt(i) != resourcePath.charAt(i)) {
+					for (; i<basePath.length && i<resourcePath.length; i++) {
+						if (!basePath[i].equals(resourcePath[i])) {
 							break;
 						}
 					}
-					basePath = basePath.substring(0, i);
+					basePath = Arrays.copyOf(basePath, i);
 				}
 			}
 		}
-		if (basePath != null && basePath.endsWith("/")) {
-			basePath = basePath.substring(0, basePath.length()-1);
+		StringBuilder sb = new StringBuilder();
+		for (String s : basePath) {
+			if (!s.isEmpty()) {
+				sb.append("/");
+				sb.append(s);
+			}
 		}
-		return basePath;
+		return sb.toString();
 	}
 
 	private static Map<String, io.swagger.models.Model> getDefinitions(RestApi restApi)
