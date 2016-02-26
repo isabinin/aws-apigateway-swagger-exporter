@@ -19,6 +19,9 @@ public class APIGExporterMain {
     @com.beust.jcommander.Parameter(names = {"--api", "-a"}, description = "API ID to export")
     private String apiId;
 
+    @com.beust.jcommander.Parameter(names = {"--region", "-r"}, description = "AWS Region")
+    private String region = getRegionFromEnvironmentVariable();
+
     @com.beust.jcommander.Parameter(names = {"--format", "-f"}, description = "Swagger file format: yaml or json")
     private String format = "yaml";
 
@@ -50,7 +53,6 @@ public class APIGExporterMain {
         }
 
         AWSCredentialsProvider provider = getEnvironmentVariableCredentialsProvider();
-        String region = getRegionFromEnvironmentVariable();
         if (provider == null || region == null) {
             AwsConfig config = new AwsConfig(profile);
             try {
