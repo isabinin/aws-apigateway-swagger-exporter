@@ -32,5 +32,10 @@ Build with `mvn assembly:assembly`
 ./aws-api-export.sh --api API_ID --format json --output FILENAME.json
 ```
 
+### Describe all CLI parameters
+```sh
+./aws-api-exporter.sh
+```
+
 For Windows environments replace `./aws-api-export.sh` with `./aws-api-export.cmd` in the examples.
 
